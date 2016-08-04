@@ -1,7 +1,7 @@
 require 'active_record'
 require 'active_support/concern'
 
-if ActiveRecord::VERSION::MAJOR == 4 and ActiveRecord::VERSION::MINOR == 2
+if ActiveRecord::VERSION::MAJOR >= 4
   module ActiveRecord
     module Type
       class UUID < Binary # :nodoc:
@@ -119,13 +119,23 @@ module ActiveUUID
 
       included do
         def quote_with_visiting(value, column = nil)
-          value = UUIDTools::UUID.serialize(value) if column && column.type == :uuid
-          quote_without_visiting(value, column)
+          if value && value.class == ActiveModel::Type::Binary::Data
+            UUIDTools::UUID.serialize(value)
+            x = value.to_s.delete('-').upcase
+            "x'#{x}'"
+          else
+            quote_without_visiting(value, column)
+          end
         end
 
         def type_cast_with_visiting(value, column = nil)
-          value = UUIDTools::UUID.serialize(value) if column && column.type == :uuid
-          type_cast_without_visiting(value, column)
+          if value && value.class == ActiveModel::Type::Binary::Data
+            UUIDTools::UUID.serialize(value)
+            x = value.to_s.delete('-').upcase
+            "x'#{x}'"
+          else
+            type_cast_without_visiting(value, column)
+          end
         end
 
         def native_database_types_with_uuid
@@ -181,7 +191,7 @@ module ActiveUUID
       ActiveRecord::ConnectionAdapters::Table.send :include, Migrations if defined? ActiveRecord::ConnectionAdapters::Table
       ActiveRecord::ConnectionAdapters::TableDefinition.send :include, Migrations if defined? ActiveRecord::ConnectionAdapters::TableDefinition
 
-      if ActiveRecord::VERSION::MAJOR == 4 and ActiveRecord::VERSION::MINOR == 2
+      if ActiveRecord::VERSION::MAJOR >= 4
         ActiveRecord::ConnectionAdapters::Mysql2Adapter.send :include, AbstractAdapter if defined? ActiveRecord::ConnectionAdapters::Mysql2Adapter
         ActiveRecord::ConnectionAdapters::SQLite3Adapter.send :include, AbstractAdapter if defined? ActiveRecord::ConnectionAdapters::SQLite3Adapter
       else
